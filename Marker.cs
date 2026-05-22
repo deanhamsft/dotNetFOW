@@ -6,24 +6,38 @@ public class Marker
     public SKPoint Center { get; }
     public float Radius { get; }
     public string Text { get; }
-    public double SizeMultiplier { get; }
+    public SKColor Color { get; }
 
-    public Marker(SKPoint center, double sizeMultiplier, string text = "Condition")
+    public Marker(SKPoint center, double sizeMultiplier, string text, SKColor color)
     {
         Center = center;
-        SizeMultiplier = sizeMultiplier;
         Radius = (float)(45 * sizeMultiplier);
         Text = text;
+        Color = color;
     }
 
     public void Draw(SKCanvas canvas)
     {
-        // Rings
-        canvas.DrawCircle(Center, Radius, new SKPaint { Color = SKColors.Red, Style = SKPaintStyle.Stroke, StrokeWidth = 8, IsAntialias = true });
-        canvas.DrawCircle(Center, Radius - 6, new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Stroke, StrokeWidth = 3, IsAntialias = true });
+        // Outer ring
+        canvas.DrawCircle(Center, Radius, new SKPaint
+        {
+            Color = Color,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 8,
+            IsAntialias = true
+        });
+
+        // Inner ring
+        canvas.DrawCircle(Center, Radius - 6, new SKPaint
+        {
+            Color = SKColors.White,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 3,
+            IsAntialias = true
+        });
 
         // Curved Text
-        using var font = new SKFont(SKTypeface.Default, 16f * (float)SizeMultiplier);
+        using var font = new SKFont(SKTypeface.Default, 15f * (Radius / 45f));
         using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
 
         float circ = Radius * 2f * (float)Math.PI;
