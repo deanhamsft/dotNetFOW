@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("rpgFogOfWar")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+02cb117494631571780d35882975dd7c56d5ca1d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e4556dd064a619b4a995e6fa3c6f8db111a989cb")]
 [assembly: System.Reflection.AssemblyProductAttribute("rpgFogOfWar")]
 [assembly: System.Reflection.AssemblyTitleAttribute("rpgFogOfWar")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
