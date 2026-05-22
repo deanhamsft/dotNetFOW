@@ -18,60 +18,37 @@ public class Marker
 
     public void Draw(SKCanvas canvas)
     {
-        // Outer Ring (Red)
-        var ringPaint = new SKPaint
-        {
-            Color = SKColors.Red,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 8,
-            IsAntialias = true
-        };
-        canvas.DrawCircle(Center, Radius, ringPaint);
+        // Rings
+        canvas.DrawCircle(Center, Radius, new SKPaint { Color = SKColors.Red, Style = SKPaintStyle.Stroke, StrokeWidth = 8, IsAntialias = true });
+        canvas.DrawCircle(Center, Radius - 6, new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Stroke, StrokeWidth = 3, IsAntialias = true });
 
-        // Inner Ring (White)
-        canvas.DrawCircle(Center, Radius - 6, new SKPaint
-        {
-            Color = SKColors.White,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 3,
-            IsAntialias = true
-        });
-
-        // === Curved Text ===
+        // Curved Text
         using var font = new SKFont(SKTypeface.Default, 16f * (float)SizeMultiplier);
-        using var textPaint = new SKPaint
-        {
-            Color = SKColors.White,
-            IsAntialias = true
-        };
+        using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
 
-        float circumference = Radius * 2f * (float)Math.PI;
-        float textWidth = font.MeasureText(Text, textPaint);
+        float circ = Radius * 2f * (float)Math.PI;
+        float textW = font.MeasureText(Text, paint);
+        if (textW <= 0) return;
 
-        if (textWidth <= 0) return;
-
-        float angleStep = (textWidth / circumference) * 360f;
-        float startAngle = -angleStep / 2f;
+        float startAngle = -(textW / circ) * 180f;
 
         for (int i = 0; i < Text.Length; i++)
         {
             string ch = Text[i].ToString();
-            float charWidth = font.MeasureText(ch, textPaint);
-
-            float angle = startAngle + (charWidth / circumference) * 180f;
+            float chW = font.MeasureText(ch, paint);
+            float angle = startAngle + (chW / circ) * 180f;
             float rad = angle * (float)Math.PI / 180f;
 
-            // Fixed: explicit casts
-            float x = Center.X + (Radius + 12) * (float)Math.Cos(rad);
-            float y = Center.Y + (Radius + 12) * (float)Math.Sin(rad);
+            float x = Center.X + (Radius + 14) * (float)Math.Cos(rad);
+            float y = Center.Y + (Radius + 14) * (float)Math.Sin(rad);
 
             canvas.Save();
             canvas.Translate(x, y);
             canvas.RotateDegrees(angle + 90);
-            canvas.DrawText(ch, 0, 0, font, textPaint);
+            canvas.DrawText(ch, 0, 0, font, paint);
             canvas.Restore();
 
-            startAngle += (charWidth / circumference) * 360f;
+            startAngle += (chW / circ) * 360f;
         }
     }
 

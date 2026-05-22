@@ -20,7 +20,8 @@ namespace rpgFogOfWar
         // Overlays
         private List<Marker> markers = new List<Marker>();
         private List<ShapeOverlay> shapes = new List<ShapeOverlay>();
-
+        private bool isRevealing = false;
+        private float revealRadius = 120f;   // adjustable reveal size
         private ShapeType currentShapeType = ShapeType.Circle;
         private bool isDrawingShape = false;
         private SKPoint shapeStart;
@@ -209,14 +210,15 @@ namespace rpgFogOfWar
             {
                 if (!fogRevealed)
                 {
-                    fogRevealed = true;           // Reveal everything
-                    InvalidateAll();
-                    return;
+                    isRevealing = true;
+                    RevealAtPoint(skPos);
                 }
-
-                // Start drawing shape
-                isDrawingShape = true;
-                shapeStart = skPos;
+                else
+                {
+                    // Start drawing shape if already revealed
+                    isDrawingShape = true;
+                    shapeStart = skPos;
+                }
             }
             else if (e.ChangedButton == MouseButton.Right)
             {
@@ -232,51 +234,35 @@ namespace rpgFogOfWar
             var pos = e.GetPosition(skControl);
             mirrorMousePos = new SKPoint((float)pos.X, (float)pos.Y);
 
-            // === PANNING (SHIFT + Left Mouse) ===
-            if (Keyboard.IsKeyDown(Key.LeftShift) && e.LeftButton == MouseButtonState.Pressed)
+            if (isRevealing && e.LeftButton == MouseButtonState.Pressed)
             {
-                if (lastPanPoint.HasValue)
-                {
-                    var delta = new SKPoint(
-                        (float)(pos.X - lastPanPoint.Value.X),
-                        (float)(pos.Y - lastPanPoint.Value.Y));
-
-                    // Apply pan to transform
-                    transform = transform.PreConcat(SKMatrix.CreateTranslation(delta.X, delta.Y));
-                }
-                lastPanPoint = pos;
-                InvalidateAll();
-                return;
+                RevealAtPoint(mirrorMousePos);
             }
 
-            // Live shape preview
             if (isDrawingShape)
             {
                 previewShape = new ShapeOverlay(currentShapeType, shapeStart, mirrorMousePos);
                 InvalidateAll();
             }
 
-            // SHIFT + Right Click Delete (existing)
+            // SHIFT + Right drag to delete marker
             if (e.RightButton == MouseButtonState.Pressed && Keyboard.IsKeyDown(Key.LeftShift))
             {
                 var skPos = new SKPoint((float)pos.X, (float)pos.Y);
-                var markerToDelete = markers.FirstOrDefault(m => m.HitTest(skPos));
-                if (markerToDelete != null)
+                var toDelete = markers.FirstOrDefault(m => m.HitTest(skPos));
+                if (toDelete != null)
                 {
-                    markers.Remove(markerToDelete);
+                    markers.Remove(toDelete);
                     InvalidateAll();
                 }
             }
-
-            lastPanPoint = null; // Reset when not panning
         }
 
         private void SkControl_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left)
             {
-                lastPanPoint = null;           // End panning
-
+                isRevealing = false;
                 if (isDrawingShape)
                 {
                     var end = new SKPoint((float)e.GetPosition(skControl).X, (float)e.GetPosition(skControl).Y);
@@ -320,6 +306,27 @@ namespace rpgFogOfWar
             {
                 audience.skAudience.InvalidateVisual();
             }
+        }
+
+        private void RevealAtPoint(SKPoint point)
+        {
+            if (fogMask == null || currentImage == null) return;
+
+            using var canvas = new SKCanvas(fogMask);
+            var erasePaint = new SKPaint
+            {
+                Color = SKColors.Transparent,
+                BlendMode = SKBlendMode.Clear,   // This erases the mask
+                IsAntialias = true
+            };
+
+            // Convert screen point to image space (important for zoomed/panned maps)
+            var inverse = transform.Invert();
+            var imagePoint = inverse.MapPoint(point);
+
+            canvas.DrawCircle(imagePoint, revealRadius, erasePaint);
+
+            InvalidateAll();
         }
 
         protected override void OnClosed(EventArgs e)
