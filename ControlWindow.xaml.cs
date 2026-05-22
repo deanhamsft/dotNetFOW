@@ -22,7 +22,7 @@ namespace rpgFogOfWar
         private bool isDrawingShape = false;
         private SKPoint shapeStart;
         private bool isRevealing = false;
-        private float revealRadius = 120f;
+        private float revealRadius = 80f;
 
         private SKPoint mirrorMousePos = new SKPoint(0, 0);
         private System.Windows.Point? lastPanPoint;
