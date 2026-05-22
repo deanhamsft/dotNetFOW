@@ -1,12 +1,7 @@
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
-using SkiaSharp.Views.WPF;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Forms;
 using System.Windows.Controls;
 
 namespace rpgFogOfWar
