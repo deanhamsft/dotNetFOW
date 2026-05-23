@@ -78,15 +78,18 @@
                                              Content="Small"
                                              IsChecked="True"
                                              Tag="0.6"
-                                             Margin="8,0"/>
+                                             Margin="8,0"
+                                             Foreground="White"/>
                                 <RadioButton x:Name="rbMedium"
                                              Content="Medium"
                                              Tag="1.0"
-                                             Margin="8,0"/>
+                                             Margin="8,0"
+                                             Foreground="White"/>
                                 <RadioButton x:Name="rbLarge"
                                              Content="Large"
                                              Tag="1.5"
-                                             Margin="8,0"/>
+                                             Margin="8,0"
+                                             Foreground="White"/>
                         </StackPanel>
 
                         <Button Content="Clear All"

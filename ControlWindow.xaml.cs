@@ -194,8 +194,6 @@ namespace rpgFogOfWar
                     }
                 }
 
-
-
                 var (text, color) = GetSelectedCondition();
                 var size = GetSelectedMarkerSize();
 
@@ -239,7 +237,8 @@ namespace rpgFogOfWar
                 var worldPoint = inverse.MapPoint(screenPoint);
 
                 previewShape = new ShapeOverlay(currentShapeType, worldPoint, currentShapeSize, currentShapeRotation);
-                InvalidateAll();
+                skControl.InvalidateVisual();           // Only update control (faster)
+                audience?.skAudience?.InvalidateVisual();
             }
         }
 
@@ -270,28 +269,35 @@ namespace rpgFogOfWar
             var pos = e.GetPosition(skControl);
             var point = new SKPoint((float)pos.X, (float)pos.Y);
 
-            if (Keyboard.IsKeyDown(Key.LeftShift))
+            if (isDrawingShape)
             {
-                // Rotate shape
-                currentShapeRotation += e.Delta > 0 ? 15f : -15f;
-            }
-            else
-            {
-                // Resize shape or zoom map
-                if (isDrawingShape)
+                if (Keyboard.IsKeyDown(Key.LeftShift))
                 {
-                    currentShapeSize *= e.Delta > 0 ? 1.15f : 0.85f;
-                    currentShapeSize = Math.Max(30f, currentShapeSize);
+                    // Rotate
+                    currentShapeRotation += e.Delta > 0 ? 15f : -15f;
                 }
                 else
                 {
-                    // Normal map zoom
-                    float zoom = e.Delta > 0 ? 1.1f : 0.9f;
-                    transform = transform.PreConcat(SKMatrix.CreateScale(zoom, zoom, point.X, point.Y));
+                    // Resize
+                    float factor = e.Delta > 0 ? 1.12f : 0.88f;
+                    currentShapeSize *= factor;
+                    currentShapeSize = Math.Clamp(currentShapeSize, 30f, 800f);
                 }
-            }
 
-            InvalidateAll();
+                // Update preview directly without full recalc
+                var inverse = transform.Invert();
+                var worldPoint = inverse.MapPoint(new SKPoint((float)pos.X, (float)pos.Y));
+
+                previewShape = new ShapeOverlay(currentShapeType, worldPoint, currentShapeSize, currentShapeRotation);
+                InvalidateAll();
+            }
+            else
+            {
+                // Normal map zoom
+                float zoom = e.Delta > 0 ? 1.1f : 0.9f;
+                transform = transform.PreConcat(SKMatrix.CreateScale(zoom, zoom, point.X, point.Y));
+                InvalidateAll();
+            }
         }
 
         private void RevealAtPoint(SKPoint screenPoint)
