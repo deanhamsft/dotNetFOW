@@ -3,100 +3,126 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
         Title="Control (DM Screen)"
-        Height="900"
-        Width="1300"
+        Height="950"
+        Width="1350"
         KeyDown="Window_KeyDown"
         Loaded="Window_Loaded">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+        <Grid>
+                <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Menu Panel -->
-        <StackPanel Grid.Column="0"
-                    Background="#222222"
-                    Margin="8">
+                <!-- Left Menu -->
+                <StackPanel Grid.Column="0"
+                            Background="#222222"
+                            Margin="10">
 
-            <TextBlock Text="D&amp;D Fog of War Tool"
-                       FontSize="18"
-                       FontWeight="Bold"
-                       Margin="10,10,10,20"
-                       Foreground="White"/>
+                        <TextBlock Text="D&amp;D Battle Map Tool"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   Margin="10,10,10,20"
+                                   Foreground="White"/>
 
-            <Button Content="Load Image (F)"
-                    Click="LoadImage_Click"
-                    Margin="5"
-                    Height="35"/>
+                        <Button Content="Load Image (F)"
+                                Click="LoadImage_Click"
+                                Margin="5"
+                                Height="40"
+                                FontSize="14"/>
 
-            <!-- Condition Selector -->
-            <TextBlock Text="Condition Marker"
-                       FontSize="14"
-                       Margin="10,15,10,5"
-                       Foreground="White"/>
-            <ComboBox x:Name="ConditionCombo"
-                      Margin="8"
-                      Height="35"
-                      SelectedIndex="0">
-                <ComboBoxItem>Generic Condition</ComboBoxItem>
-                <ComboBoxItem>Poisoned</ComboBoxItem>
-                <ComboBoxItem>Blinded</ComboBoxItem>
-                <ComboBoxItem>Restrained</ComboBoxItem>
-                <ComboBoxItem>Prone</ComboBoxItem>
-                <ComboBoxItem>Paralyzed</ComboBoxItem>
-                <ComboBoxItem>Stunned</ComboBoxItem>
-                <ComboBoxItem>Charmed</ComboBoxItem>
-                <ComboBoxItem>Frightened</ComboBoxItem>
-                <ComboBoxItem>Incapacitated</ComboBoxItem>
-            </ComboBox>
+                        <!-- Shape Selector -->
+                        <TextBlock Text="Area of Effect Shape"
+                                   FontSize="14"
+                                   Margin="10,15,10,5"
+                                   Foreground="White"/>
+                        <ComboBox x:Name="ShapeCombo"
+                                  Margin="8"
+                                  Height="40"
+                                  SelectedIndex="0"
+                                  SelectionChanged="ShapeCombo_SelectionChanged">
+                                <ComboBoxItem>Circle</ComboBoxItem>
+                                <ComboBoxItem>Square</ComboBoxItem>
+                                <ComboBoxItem>Rectangle</ComboBoxItem>
+                                <ComboBoxItem>Cone</ComboBoxItem>
+                        </ComboBox>
 
-            <TextBlock Text="Marker Size"
-                       FontSize="14"
-                       Margin="10,15,10,5"
-                       Foreground="White"/>
-            <StackPanel Orientation="Horizontal"
-                        Margin="8">
-                <RadioButton x:Name="rbSmall"
-                             Content="Small"
-                             IsChecked="True"
-                             Tag="0.6"
-                             Margin="5"/>
-                <RadioButton x:Name="rbMedium"
-                             Content="Medium"
-                             Tag="1.0"
-                             Margin="5"/>
-                <RadioButton x:Name="rbLarge"
-                             Content="Large"
-                             Tag="1.5"
-                             Margin="5"/>
-            </StackPanel>
+                        <!-- Condition Marker -->
+                        <TextBlock Text="Condition Marker"
+                                   FontSize="14"
+                                   Margin="10,15,10,5"
+                                   Foreground="White"/>
+                        <ComboBox x:Name="ConditionCombo"
+                                  Margin="8"
+                                  Height="40"
+                                  SelectedIndex="0">
+                                <ComboBoxItem>Generic Condition</ComboBoxItem>
+                                <ComboBoxItem>Poisoned</ComboBoxItem>
+                                <ComboBoxItem>Blinded</ComboBoxItem>
+                                <ComboBoxItem>Restrained</ComboBoxItem>
+                                <ComboBoxItem>Prone</ComboBoxItem>
+                                <ComboBoxItem>Paralyzed</ComboBoxItem>
+                                <ComboBoxItem>Stunned</ComboBoxItem>
+                                <ComboBoxItem>Charmed</ComboBoxItem>
+                                <ComboBoxItem>Frightened</ComboBoxItem>
+                                <ComboBoxItem>Incapacitated</ComboBoxItem>
+                        </ComboBox>
 
-            <Button Content="Clear All"
-                    Click="ClearAll_Click"
-                    Margin="8"
-                    Height="35"/>
-            <TextBlock Text="Shortcuts:"
-                       Margin="10,20,10,5"
-                       Foreground="#AAA"/>
-            <TextBlock Text="• Left Drag = Reveal Fog"
-                       Margin="10,0"
-                       Foreground="#AAA"/>
-            <TextBlock Text="• Right Click = Place Marker"
-                       Margin="10,0"
-                       Foreground="#AAA"/>
-            <TextBlock Text="• Shift + Right Click = Delete Marker"
-                       Margin="10,0"
-                       Foreground="#AAA"/>
-        </StackPanel>
+                        <TextBlock Text="Marker Size"
+                                   FontSize="14"
+                                   Margin="10,15,10,5"
+                                   Foreground="White"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="8">
+                                <RadioButton x:Name="rbSmall"
+                                             Content="Small"
+                                             IsChecked="True"
+                                             Tag="0.6"
+                                             Margin="8,0"/>
+                                <RadioButton x:Name="rbMedium"
+                                             Content="Medium"
+                                             Tag="1.0"
+                                             Margin="8,0"/>
+                                <RadioButton x:Name="rbLarge"
+                                             Content="Large"
+                                             Tag="1.5"
+                                             Margin="8,0"/>
+                        </StackPanel>
 
-        <!-- Canvas -->
-        <skia:SKElement x:Name="skControl"
-                        Grid.Column="1"
-                        PaintSurface="SkControl_PaintSurface"
-                        MouseDown="SkControl_MouseDown"
-                        MouseMove="SkControl_MouseMove"
-                        MouseUp="SkControl_MouseUp"
-                        MouseWheel="SkControl_MouseWheel"/>
-    </Grid>
+                        <Button Content="Clear All"
+                                Click="ClearAll_Click"
+                                Margin="8"
+                                Height="40"
+                                FontSize="14"/>
+
+                        <TextBlock Text="Controls:"
+                                   Margin="10,20,10,5"
+                                   Foreground="#CCC"
+                                   FontSize="13"/>
+                        <TextBlock Text="• Left Drag = Reveal Fog"
+                                   Margin="10,2"
+                                   Foreground="#AAA"/>
+                        <TextBlock Text="• Right Click = Place Marker"
+                                   Margin="10,2"
+                                   Foreground="#AAA"/>
+                        <TextBlock Text="• Shift + Right Click = Delete Marker"
+                                   Margin="10,2"
+                                   Foreground="#AAA"/>
+                        <TextBlock Text="• Mouse Wheel = Resize Shape / Zoom Map"
+                                   Margin="10,2"
+                                   Foreground="#AAA"/>
+                        <TextBlock Text="• Shift + Wheel = Rotate Shape"
+                                   Margin="10,2"
+                                   Foreground="#AAA"/>
+                </StackPanel>
+
+                <!-- Canvas Area -->
+                <skia:SKElement x:Name="skControl"
+                                Grid.Column="1"
+                                PaintSurface="SkControl_PaintSurface"
+                                MouseDown="SkControl_MouseDown"
+                                MouseMove="SkControl_MouseMove"
+                                MouseUp="SkControl_MouseUp"
+                                MouseWheel="SkControl_MouseWheel"/>
+        </Grid>
 </Window>

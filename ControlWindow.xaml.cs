@@ -9,28 +9,23 @@ namespace rpgFogOfWar
     public partial class ControlWindow : Window
     {
         private AudienceWindow? audience;
-
+        private float currentShapeSize = 120f;
+        private float currentShapeRotation = 0f;
         public SKBitmap? currentImage;
         public SKMatrix transform = SKMatrix.CreateIdentity();
         public SKBitmap? fogMask;
         public bool fogRevealed = false;
-
         private List<Marker> markers = new List<Marker>();
         private List<ShapeOverlay> shapes = new List<ShapeOverlay>();
         private ShapeOverlay? previewShape = null;
-
         private bool isDrawingShape = false;
         private SKPoint shapeStart;
+        private ShapeType currentShapeType = ShapeType.Circle;
         private bool isRevealing = false;
         private float revealRadius = 80f;
-
         private SKPoint mirrorMousePos = new SKPoint(0, 0);
         private System.Windows.Point? lastPanPoint;
-
         private Stack<object> undoStack = new Stack<object>();
-
-        // Missing field - added here
-        private ShapeType currentShapeType = ShapeType.Circle;
 
         public ControlWindow()
         {
@@ -112,6 +107,7 @@ namespace rpgFogOfWar
 
             DrawOverlays(canvas);
 
+            // Mirror mouse indicator - now correctly transformed
             canvas.DrawCircle(mirrorMousePos, 15, new SKPaint
             {
                 Color = SKColors.Yellow,
@@ -165,20 +161,48 @@ namespace rpgFogOfWar
                 if (!fogRevealed)
                 {
                     isRevealing = true;
-                    RevealAtPoint(skPos);
+                    RevealAtPoint(new SKPoint((float)pos.X, (float)pos.Y));
                     return;
                 }
 
+                // Place shape
                 isDrawingShape = true;
-                shapeStart = skPos;
+                shapeStart = mirrorMousePos; // Not really used anymore
             }
+
             else if (e.ChangedButton == MouseButton.Right)
             {
+                pos = e.GetPosition(skControl);
+                var screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
+
+                // Normal Right Click = Place Marker
+                var inverse = transform.Invert();
+                var worldPoint = inverse.MapPoint(screenPoint);
+
+                // Check for Delete first (Shift + Right Click)
+                if (Keyboard.IsKeyDown(Key.LeftShift))
+                {
+                    inverse = transform.Invert();
+                    worldPoint = inverse.MapPoint(screenPoint);
+
+                    var toDelete = markers.FirstOrDefault(m => m.HitTest(worldPoint));
+                    if (toDelete != null)
+                    {
+                        markers.Remove(toDelete);
+                        InvalidateAll();
+                        return;                    // Important: exit early
+                    }
+                }
+
+
+
                 var (text, color) = GetSelectedCondition();
                 var size = GetSelectedMarkerSize();
-                var marker = new Marker(skPos, size, text, color);
+
+                var marker = new Marker(worldPoint, size, text, color);
                 markers.Add(marker);
                 undoStack.Push(marker);
+
                 InvalidateAll();
             }
         }
@@ -186,11 +210,15 @@ namespace rpgFogOfWar
         private void SkControl_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             var pos = e.GetPosition(skControl);
-            mirrorMousePos = new SKPoint((float)pos.X, (float)pos.Y);
+            var screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
+
+            var inverse = transform.Invert();
+            mirrorMousePos = inverse.MapPoint(screenPoint);
 
             if (isRevealing && e.LeftButton == MouseButtonState.Pressed)
-                RevealAtPoint(mirrorMousePos);
+                RevealAtPoint(screenPoint);
 
+            // Panning
             if (Keyboard.IsKeyDown(Key.LeftShift) && e.LeftButton == MouseButtonState.Pressed && lastPanPoint.HasValue)
             {
                 var deltaX = (float)(pos.X - lastPanPoint.Value.X);
@@ -201,21 +229,17 @@ namespace rpgFogOfWar
                 return;
             }
 
+            // Live Shape Preview
             if (isDrawingShape)
             {
-                previewShape = new ShapeOverlay(currentShapeType, shapeStart, mirrorMousePos);
-                InvalidateAll();
-            }
+                pos = e.GetPosition(skControl);
+                screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
 
-            if (e.RightButton == MouseButtonState.Pressed && Keyboard.IsKeyDown(Key.LeftShift))
-            {
-                var skPos = new SKPoint((float)pos.X, (float)pos.Y);
-                var toDelete = markers.FirstOrDefault(m => m.HitTest(skPos));
-                if (toDelete != null)
-                {
-                    markers.Remove(toDelete);
-                    InvalidateAll();
-                }
+                inverse = transform.Invert();
+                var worldPoint = inverse.MapPoint(screenPoint);
+
+                previewShape = new ShapeOverlay(currentShapeType, worldPoint, currentShapeSize, currentShapeRotation);
+                InvalidateAll();
             }
         }
 
@@ -228,10 +252,12 @@ namespace rpgFogOfWar
 
                 if (isDrawingShape)
                 {
-                    var end = new SKPoint((float)e.GetPosition(skControl).X, (float)e.GetPosition(skControl).Y);
-                    var shape = new ShapeOverlay(currentShapeType, shapeStart, end);
-                    shapes.Add(shape);
-                    undoStack.Push(shape);
+                    var finalShape = new ShapeOverlay(currentShapeType, mirrorMousePos, currentShapeSize, currentShapeRotation);
+                    shapes.Add(finalShape);
+                    undoStack.Push(finalShape);
+
+                    // Reset rotation for next shape
+                    currentShapeRotation = 0f;
                     isDrawingShape = false;
                     previewShape = null;
                     InvalidateAll();
@@ -242,9 +268,29 @@ namespace rpgFogOfWar
         private void SkControl_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             var pos = e.GetPosition(skControl);
-            float zoom = e.Delta > 0 ? 1.1f : 0.9f;
             var point = new SKPoint((float)pos.X, (float)pos.Y);
-            transform = transform.PreConcat(SKMatrix.CreateScale(zoom, zoom, point.X, point.Y));
+
+            if (Keyboard.IsKeyDown(Key.LeftShift))
+            {
+                // Rotate shape
+                currentShapeRotation += e.Delta > 0 ? 15f : -15f;
+            }
+            else
+            {
+                // Resize shape or zoom map
+                if (isDrawingShape)
+                {
+                    currentShapeSize *= e.Delta > 0 ? 1.15f : 0.85f;
+                    currentShapeSize = Math.Max(30f, currentShapeSize);
+                }
+                else
+                {
+                    // Normal map zoom
+                    float zoom = e.Delta > 0 ? 1.1f : 0.9f;
+                    transform = transform.PreConcat(SKMatrix.CreateScale(zoom, zoom, point.X, point.Y));
+                }
+            }
+
             InvalidateAll();
         }
 
@@ -294,6 +340,25 @@ namespace rpgFogOfWar
             return 0.6;
         }
 
+        private void ShapeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Update current shape type
+            currentShapeType = ShapeCombo.SelectedIndex switch
+            {
+                1 => ShapeType.Square,
+                2 => ShapeType.Rectangle,
+                3 => ShapeType.Cone,
+                _ => ShapeType.Circle
+            };
+
+            // Only activate preview after everything is loaded
+            if (skControl != null)
+            {
+                isDrawingShape = true;
+                InvalidateAll();
+            }
+        }
+
         private void ClearAll_Click(object sender, RoutedEventArgs e)
         {
             markers.Clear();
@@ -304,7 +369,7 @@ namespace rpgFogOfWar
 
         private void InvalidateAll()
         {
-            skControl.InvalidateVisual();
+            skControl?.InvalidateVisual();
             audience?.skAudience?.InvalidateVisual();
         }
 

@@ -1,57 +1,59 @@
 using SkiaSharp;
 
-public enum ShapeType { Circle, Square, Cone, Rectangle }
+public enum ShapeType { Circle, Square, Rectangle, Cone }
 
 public class ShapeOverlay
 {
     public ShapeType Type { get; }
-    public SKPoint Start { get; }
-    public SKPoint End { get; }
+    public SKPoint Center { get; }
+    public float Size { get; }           // Radius for circle/cone, width for rect
+    public float Rotation { get; }       // Degrees
 
-    public ShapeOverlay(ShapeType type, SKPoint start, SKPoint end)
+    public ShapeOverlay(ShapeType type, SKPoint center, float size, float rotation = 0f)
     {
         Type = type;
-        Start = start;
-        End = end;
+        Center = center;
+        Size = size;
+        Rotation = rotation;
     }
 
     public void Draw(SKCanvas canvas)
     {
         var paint = new SKPaint
         {
-            Color = new SKColor(0, 255, 100, 120), // semi-transparent green
+            Color = new SKColor(0, 255, 100, 120), // Semi-transparent green
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
+        canvas.Save();
+        canvas.Translate(Center.X, Center.Y);
+        canvas.RotateDegrees(Rotation);
+
         switch (Type)
         {
             case ShapeType.Circle:
-                float radius = SKPoint.Distance(Start, End);
-                canvas.DrawCircle(Start, radius, paint);
+                canvas.DrawCircle(0, 0, Size, paint);
                 break;
 
             case ShapeType.Square:
-            case ShapeType.Rectangle:
-                // Fixed: Properly create rectangle from two points
-                float left = Math.Min(Start.X, End.X);
-                float top = Math.Min(Start.Y, End.Y);
-                float right = Math.Max(Start.X, End.X);
-                float bottom = Math.Max(Start.Y, End.Y);
+                canvas.DrawRect(-Size, -Size, Size * 2, Size * 2, paint);
+                break;
 
-                var rect = new SKRect(left, top, right, bottom);
-                canvas.DrawRect(rect, paint);
+            case ShapeType.Rectangle:
+                canvas.DrawRect(-Size * 1.5f, -Size * 0.75f, Size * 3f, Size * 1.5f, paint);
                 break;
 
             case ShapeType.Cone:
-                // Simple cone/triangle
                 var path = new SKPath();
-                path.MoveTo(Start);
-                path.LineTo(new SKPoint(End.X - 60, End.Y));
-                path.LineTo(new SKPoint(End.X + 60, End.Y));
+                path.MoveTo(0, 0);
+                path.LineTo(-Size * 0.8f, Size * 1.8f);
+                path.LineTo(Size * 0.8f, Size * 1.8f);
                 path.Close();
                 canvas.DrawPath(path, paint);
                 break;
         }
+
+        canvas.Restore();
     }
 }
