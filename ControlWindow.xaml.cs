@@ -1,31 +1,45 @@
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
+using SkiaSharp.Views.WPF;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Forms;
+using System.Diagnostics;
+using System.Text.Json;
+using System.IO;
 
 namespace rpgFogOfWar
 {
     public partial class ControlWindow : Window
     {
         private AudienceWindow? audience;
-        private float currentShapeSize = 120f;
-        private float currentShapeRotation = 0f;
+
         public SKBitmap? currentImage;
+        private string? currentImagePath;
         public SKMatrix transform = SKMatrix.CreateIdentity();
         public SKBitmap? fogMask;
         public bool fogRevealed = false;
+
         private List<Marker> markers = new List<Marker>();
         private List<ShapeOverlay> shapes = new List<ShapeOverlay>();
         private ShapeOverlay? previewShape = null;
+
         private bool isDrawingShape = false;
-        private SKPoint shapeStart;
-        private ShapeType currentShapeType = ShapeType.Circle;
         private bool isRevealing = false;
-        private float revealRadius = 80f;
+        private float revealRadius = 120f;
+
         private SKPoint mirrorMousePos = new SKPoint(0, 0);
         private System.Windows.Point? lastPanPoint;
+
         private Stack<object> undoStack = new Stack<object>();
+
+        private ShapeType currentShapeType = ShapeType.Circle;
+        private float currentShapeSize = 120f;
+        private float currentShapeRotation = 0f;
 
         public ControlWindow()
         {
@@ -38,7 +52,6 @@ namespace rpgFogOfWar
             audience.Control = this;
 
             var screens = System.Windows.Forms.Screen.AllScreens;
-
             if (screens.Length > 0)
             {
                 var ctrlScreen = screens[0];
@@ -73,6 +86,7 @@ namespace rpgFogOfWar
             var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp" };
             if (dlg.ShowDialog() == true)
             {
+                currentImagePath = dlg.FileName;
                 currentImage = SKBitmap.Decode(dlg.FileName);
                 fogRevealed = false;
                 CreateFogMask();
@@ -107,7 +121,6 @@ namespace rpgFogOfWar
 
             DrawOverlays(canvas);
 
-            // Mirror mouse indicator - now correctly transformed
             canvas.DrawCircle(mirrorMousePos, 15, new SKPaint
             {
                 Color = SKColors.Yellow,
@@ -133,6 +146,10 @@ namespace rpgFogOfWar
                 CreateFogMask();
                 InvalidateAll();
             }
+            if (e.Key == Key.S && Keyboard.IsKeyDown(Key.LeftCtrl))
+                SaveSession();
+            if (e.Key == Key.O && Keyboard.IsKeyDown(Key.LeftCtrl))
+                LoadSession();
             if (e.Key == Key.Z && Keyboard.IsKeyDown(Key.LeftCtrl))
             {
                 if (undoStack.Count > 0)
@@ -148,7 +165,9 @@ namespace rpgFogOfWar
         private void SkControl_MouseDown(object sender, MouseButtonEventArgs e)
         {
             var pos = e.GetPosition(skControl);
-            var skPos = new SKPoint((float)pos.X, (float)pos.Y);
+            var screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
+            var inverse = transform.Invert();
+            var worldPoint = inverse.MapPoint(screenPoint);
 
             if (e.ChangedButton == MouseButton.Left)
             {
@@ -161,46 +180,30 @@ namespace rpgFogOfWar
                 if (!fogRevealed)
                 {
                     isRevealing = true;
-                    RevealAtPoint(new SKPoint((float)pos.X, (float)pos.Y));
+                    RevealAtPoint(screenPoint);
                     return;
                 }
 
-                // Place shape
                 isDrawingShape = true;
-                shapeStart = mirrorMousePos; // Not really used anymore
             }
-
             else if (e.ChangedButton == MouseButton.Right)
             {
-                pos = e.GetPosition(skControl);
-                var screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
-
-                // Normal Right Click = Place Marker
-                var inverse = transform.Invert();
-                var worldPoint = inverse.MapPoint(screenPoint);
-
-                // Check for Delete first (Shift + Right Click)
                 if (Keyboard.IsKeyDown(Key.LeftShift))
                 {
-                    inverse = transform.Invert();
-                    worldPoint = inverse.MapPoint(screenPoint);
-
                     var toDelete = markers.FirstOrDefault(m => m.HitTest(worldPoint));
                     if (toDelete != null)
                     {
                         markers.Remove(toDelete);
                         InvalidateAll();
-                        return;                    // Important: exit early
+                        return;
                     }
                 }
 
                 var (text, color) = GetSelectedCondition();
                 var size = GetSelectedMarkerSize();
-
                 var marker = new Marker(worldPoint, size, text, color);
                 markers.Add(marker);
                 undoStack.Push(marker);
-
                 InvalidateAll();
             }
         }
@@ -209,14 +212,12 @@ namespace rpgFogOfWar
         {
             var pos = e.GetPosition(skControl);
             var screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
-
             var inverse = transform.Invert();
             mirrorMousePos = inverse.MapPoint(screenPoint);
 
             if (isRevealing && e.LeftButton == MouseButtonState.Pressed)
                 RevealAtPoint(screenPoint);
 
-            // Panning
             if (Keyboard.IsKeyDown(Key.LeftShift) && e.LeftButton == MouseButtonState.Pressed && lastPanPoint.HasValue)
             {
                 var deltaX = (float)(pos.X - lastPanPoint.Value.X);
@@ -227,18 +228,10 @@ namespace rpgFogOfWar
                 return;
             }
 
-            // Live Shape Preview
             if (isDrawingShape)
             {
-                pos = e.GetPosition(skControl);
-                screenPoint = new SKPoint((float)pos.X, (float)pos.Y);
-
-                inverse = transform.Invert();
-                var worldPoint = inverse.MapPoint(screenPoint);
-
-                previewShape = new ShapeOverlay(currentShapeType, worldPoint, currentShapeSize, currentShapeRotation);
-                skControl.InvalidateVisual();           // Only update control (faster)
-                audience?.skAudience?.InvalidateVisual();
+                previewShape = new ShapeOverlay(currentShapeType, mirrorMousePos, currentShapeSize, currentShapeRotation);
+                InvalidateAll();
             }
         }
 
@@ -254,9 +247,6 @@ namespace rpgFogOfWar
                     var finalShape = new ShapeOverlay(currentShapeType, mirrorMousePos, currentShapeSize, currentShapeRotation);
                     shapes.Add(finalShape);
                     undoStack.Push(finalShape);
-
-                    // Reset rotation for next shape
-                    currentShapeRotation = 0f;
                     isDrawingShape = false;
                     previewShape = null;
                     InvalidateAll();
@@ -273,27 +263,19 @@ namespace rpgFogOfWar
             {
                 if (Keyboard.IsKeyDown(Key.LeftShift))
                 {
-                    // Rotate
                     currentShapeRotation += e.Delta > 0 ? 15f : -15f;
                 }
                 else
                 {
-                    // Resize
-                    float factor = e.Delta > 0 ? 1.12f : 0.88f;
-                    currentShapeSize *= factor;
+                    currentShapeSize *= e.Delta > 0 ? 1.12f : 0.88f;
                     currentShapeSize = Math.Clamp(currentShapeSize, 30f, 800f);
                 }
 
-                // Update preview directly without full recalc
-                var inverse = transform.Invert();
-                var worldPoint = inverse.MapPoint(new SKPoint((float)pos.X, (float)pos.Y));
-
-                previewShape = new ShapeOverlay(currentShapeType, worldPoint, currentShapeSize, currentShapeRotation);
+                previewShape = new ShapeOverlay(currentShapeType, mirrorMousePos, currentShapeSize, currentShapeRotation);
                 InvalidateAll();
             }
             else
             {
-                // Normal map zoom
                 float zoom = e.Delta > 0 ? 1.1f : 0.9f;
                 transform = transform.PreConcat(SKMatrix.CreateScale(zoom, zoom, point.X, point.Y));
                 InvalidateAll();
@@ -308,13 +290,7 @@ namespace rpgFogOfWar
             var imagePoint = inverse.MapPoint(screenPoint);
 
             using var canvas = new SKCanvas(fogMask);
-            var erasePaint = new SKPaint
-            {
-                Color = SKColors.Transparent,
-                BlendMode = SKBlendMode.Clear,
-                IsAntialias = true
-            };
-
+            var erasePaint = new SKPaint { Color = SKColors.Transparent, BlendMode = SKBlendMode.Clear, IsAntialias = true };
             canvas.DrawCircle(imagePoint, revealRadius, erasePaint);
             InvalidateAll();
         }
@@ -346,9 +322,16 @@ namespace rpgFogOfWar
             return 0.6;
         }
 
+        private void ClearAll_Click(object sender, RoutedEventArgs e)
+        {
+            markers.Clear();
+            shapes.Clear();
+            undoStack.Clear();
+            InvalidateAll();
+        }
+
         private void ShapeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Update current shape type
             currentShapeType = ShapeCombo.SelectedIndex switch
             {
                 1 => ShapeType.Square,
@@ -356,21 +339,127 @@ namespace rpgFogOfWar
                 3 => ShapeType.Cone,
                 _ => ShapeType.Circle
             };
+            isDrawingShape = true;
+            InvalidateAll();
+        }
 
-            // Only activate preview after everything is loaded
-            if (skControl != null)
+        private void SaveSession()
+        {
+            if (currentImage == null)
             {
-                isDrawingShape = true;
-                InvalidateAll();
+                System.Windows.MessageBox.Show("No map loaded to save.", "Save Session", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "D&D Map Session|*.dndmap",
+                DefaultExt = "dndmap"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var session = new SessionData
+                    {
+                        ImagePath = currentImagePath,
+                        FogRevealed = fogRevealed,
+                        TranslateX = transform.TransX,
+                        TranslateY = transform.TransY,
+                        Scale = transform.ScaleX
+                    };
+
+                    // Save Markers
+                    foreach (var m in markers)
+                    {
+                        session.Markers.Add(new MarkerData
+                        {
+                            X = m.Center.X,
+                            Y = m.Center.Y,
+                            SizeMultiplier = m.SizeMultiplier,
+                            Text = m.Text,
+                            ColorHex = m.Color.ToString()
+                        });
+                    }
+
+                    // Save Shapes
+                    foreach (var s in shapes)
+                    {
+                        session.Shapes.Add(new ShapeData
+                        {
+                            Type = s.Type.ToString(),
+                            CenterX = s.Center.X,
+                            CenterY = s.Center.Y,
+                            Size = s.Size,
+                            Rotation = s.Rotation
+                        });
+                    }
+
+                    string json = JsonSerializer.Serialize(session, new JsonSerializerOptions { WriteIndented = true });
+                    File.WriteAllText(dlg.FileName, json);
+
+                    System.Windows.MessageBox.Show("Session saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show("Failed to save session:\n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
-        private void ClearAll_Click(object sender, RoutedEventArgs e)
+        private void LoadSession()
         {
-            markers.Clear();
-            shapes.Clear();
-            undoStack.Clear();
-            InvalidateAll();
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "D&D Map Session|*.dndmap"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    string json = File.ReadAllText(dlg.FileName);
+                    var session = JsonSerializer.Deserialize<SessionData>(json);
+
+                    if (session?.ImagePath != null && File.Exists(session.ImagePath))
+                    {
+                        currentImagePath = session.ImagePath;
+                        currentImage = SKBitmap.Decode(session.ImagePath);
+                        CreateFogMask();
+                        fogRevealed = session.FogRevealed;
+
+                        // Restore transform
+                        transform = SKMatrix.CreateTranslation(session.TranslateX, session.TranslateY);
+                        transform = transform.PreConcat(SKMatrix.CreateScale(session.Scale, session.Scale));
+
+                        // Load Markers
+                        markers.Clear();
+                        foreach (var md in session.Markers)
+                        {
+                            var color = SKColor.Parse(md.ColorHex);
+                            markers.Add(new Marker(new SKPoint(md.X, md.Y), md.SizeMultiplier, md.Text, color));
+                        }
+
+                        // Load Shapes
+                        shapes.Clear();
+                        foreach (var sd in session.Shapes)
+                        {
+                            if (Enum.TryParse(sd.Type, out ShapeType type))
+                            {
+                                shapes.Add(new ShapeOverlay(type, new SKPoint(sd.CenterX, sd.CenterY), sd.Size, sd.Rotation));
+                            }
+                        }
+
+                        InvalidateAll();
+                        System.Windows.MessageBox.Show("Session loaded successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show("Failed to load session:\n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private void InvalidateAll()

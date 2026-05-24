@@ -1,4 +1,5 @@
 using SkiaSharp;
+using System;
 
 public class Marker
 {
@@ -6,10 +7,12 @@ public class Marker
     public float Radius { get; }
     public string Text { get; }
     public SKColor Color { get; }
+    public double SizeMultiplier { get; }     // ← Added for Save/Load
 
     public Marker(SKPoint center, double sizeMultiplier, string text, SKColor color)
     {
         Center = center;
+        SizeMultiplier = sizeMultiplier;
         Radius = (float)(45 * sizeMultiplier);
         Text = text;
         Color = color;
@@ -17,7 +20,7 @@ public class Marker
 
     public void Draw(SKCanvas canvas)
     {
-        // Outer ring
+        // Outer Ring
         canvas.DrawCircle(Center, Radius, new SKPaint
         {
             Color = Color,
@@ -26,7 +29,7 @@ public class Marker
             IsAntialias = true
         });
 
-        // Inner ring
+        // Inner Ring
         canvas.DrawCircle(Center, Radius - 6, new SKPaint
         {
             Color = SKColors.White,
@@ -36,7 +39,7 @@ public class Marker
         });
 
         // Curved Text
-        using var font = new SKFont(SKTypeface.Default, 15f * (Radius / 45f));
+        using var font = new SKFont(SKTypeface.Default, 15f * (float)SizeMultiplier);
         using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
 
         float circ = Radius * 2f * (float)Math.PI;
