@@ -343,6 +343,8 @@ namespace rpgFogOfWar
             InvalidateAll();
         }
 
+        private void SaveSession_Click(object sender, RoutedEventArgs e) => SaveSession();
+
         private void SaveSession()
         {
             if (currentImage == null)
@@ -407,6 +409,8 @@ namespace rpgFogOfWar
                 }
             }
         }
+
+        private void LoadSession_Click(object sender, RoutedEventArgs e) => LoadSession();
 
         private void LoadSession()
         {

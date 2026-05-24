@@ -19,7 +19,7 @@
                             Background="#222222"
                             Margin="10">
 
-                        <TextBlock Text="D&amp;D Battle Map Tool"
+                        <TextBlock Text="FOW Battle Map Tool"
                                    FontSize="18"
                                    FontWeight="Bold"
                                    Margin="10,10,10,20"
@@ -30,7 +30,19 @@
                                 Margin="5"
                                 Height="40"
                                 FontSize="14"/>
+                        <StackPanel Orientation="Horizontal">
+                                <Button Content="Save state (ctl-s)"
+                                        Click="SaveSession_Click"
+                                        Margin="5"
+                                        Height="40"
+                                        FontSize="14"/>
 
+                                <Button Content="Load state (ctl-o)"
+                                        Click="LoadSession_Click"
+                                        Margin="5"
+                                        Height="40"
+                                        FontSize="14"/>
+                        </StackPanel>
                         <!-- Shape Selector -->
                         <TextBlock Text="Area of Effect Shape"
                                    FontSize="14"
