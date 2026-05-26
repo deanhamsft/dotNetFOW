@@ -1,23 +1,18 @@
-using SkiaSharp;
-using SkiaSharp.Views.Desktop;
-using SkiaSharp.Views.WPF;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Forms;
 using System.Diagnostics;
-using System.Text.Json;
-using System.IO;
+using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 
 namespace rpgFogOfWar
 {
     public partial class ControlWindow : Window
     {
         private AudienceWindow? audience;
-
+        private bool shapeModeActive = false;   // New flag
         public SKBitmap? currentImage;
         private string? currentImagePath;
         public SKMatrix transform = SKMatrix.CreateIdentity();
@@ -34,7 +29,7 @@ namespace rpgFogOfWar
 
         private SKPoint mirrorMousePos = new SKPoint(0, 0);
         private System.Windows.Point? lastPanPoint;
-
+        private bool isFullyLoaded = false;
         private Stack<object> undoStack = new Stack<object>();
 
         private ShapeType currentShapeType = ShapeType.Circle;
@@ -43,6 +38,7 @@ namespace rpgFogOfWar
 
         public ControlWindow()
         {
+            Debug.WriteLine("ControlWindow Constructor called");
             InitializeComponent();
         }
 
@@ -77,6 +73,9 @@ namespace rpgFogOfWar
             }
 
             this.Activate();
+            isFullyLoaded = true;
+            Debug.WriteLine("Window fully loaded - shape selection enabled");
+
         }
 
         private void LoadImage_Click(object sender, RoutedEventArgs e) => LoadImage();
@@ -121,7 +120,7 @@ namespace rpgFogOfWar
 
             DrawOverlays(canvas);
 
-            canvas.DrawCircle(mirrorMousePos, 15, new SKPaint
+            canvas.DrawCircle(mirrorMousePos, 10, new SKPaint
             {
                 Color = SKColors.Yellow,
                 Style = SKPaintStyle.Stroke,
@@ -180,11 +179,15 @@ namespace rpgFogOfWar
                 if (!fogRevealed)
                 {
                     isRevealing = true;
-                    RevealAtPoint(screenPoint);
+                    RevealAtPoint(new SKPoint((float)pos.X, (float)pos.Y));
                     return;
                 }
 
-                isDrawingShape = true;
+                // Only start drawing shape if shape mode is active
+                if (shapeModeActive)
+                {
+                    isDrawingShape = true;
+                }
             }
             else if (e.ChangedButton == MouseButton.Right)
             {
@@ -242,12 +245,14 @@ namespace rpgFogOfWar
                 isRevealing = false;
                 lastPanPoint = null;
 
-                if (isDrawingShape)
+                if (isDrawingShape && shapeModeActive)
                 {
                     var finalShape = new ShapeOverlay(currentShapeType, mirrorMousePos, currentShapeSize, currentShapeRotation);
                     shapes.Add(finalShape);
                     undoStack.Push(finalShape);
-                    isDrawingShape = false;
+
+                    // Do NOT reset shapeModeActive - user can keep placing same shape
+                    isDrawingShape = true;           // Stay in preview mode
                     previewShape = null;
                     InvalidateAll();
                 }
@@ -332,14 +337,21 @@ namespace rpgFogOfWar
 
         private void ShapeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!isFullyLoaded)
+                return;
             currentShapeType = ShapeCombo.SelectedIndex switch
             {
-                1 => ShapeType.Square,
-                2 => ShapeType.Rectangle,
-                3 => ShapeType.Cone,
+                2 => ShapeType.Square,
+                3 => ShapeType.Rectangle,
+                4 => ShapeType.Cone,
                 _ => ShapeType.Circle
             };
+            Debug.WriteLine($"ShapeCombo_SelectionChanged: currentShapeType set to {currentShapeType}");
+            shapeModeActive = true;
             isDrawingShape = true;
+            currentShapeSize = 120f;
+            currentShapeRotation = 0f;
+
             InvalidateAll();
         }
 
@@ -355,8 +367,8 @@ namespace rpgFogOfWar
 
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
-                Filter = "D&D Map Session|*.dndmap",
-                DefaultExt = "dndmap"
+                Filter = "Map Session|*.mapSes",
+                DefaultExt = "mapSes"
             };
 
             if (dlg.ShowDialog() == true)
@@ -416,7 +428,7 @@ namespace rpgFogOfWar
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "D&D Map Session|*.dndmap"
+                Filter = "Map Session|*.mapSes"
             };
 
             if (dlg.ShowDialog() == true)

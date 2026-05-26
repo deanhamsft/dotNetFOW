@@ -1,7 +1,3 @@
-using SkiaSharp;
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
-
 public class SessionData
 {
     public string? ImagePath { get; set; }
