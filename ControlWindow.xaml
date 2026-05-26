@@ -16,7 +16,7 @@
 
                 <!-- Left Menu -->
                 <StackPanel Grid.Column="0"
-                            Margin="10">
+                            Margin="0">
                         <StackPanel.Background>
                                 <LinearGradientBrush StartPoint="0,0"
                                                      EndPoint="1,1">

@@ -26,14 +26,44 @@ namespace rpgFogOfWar
             canvas.SetMatrix(Control.transform);
             canvas.DrawBitmap(Control.currentImage, 0, 0);
 
-            // Draw the current fog mask state (revealed areas will show through)
+            // Draw current fog state
             if (!Control.fogRevealed && Control.fogMask != null)
             {
                 canvas.DrawBitmap(Control.fogMask, 0, 0);
             }
 
-            // Always draw markers and shapes on top (they should be visible on both)
+            // Draw all markers and shapes
             Control.DrawOverlays(canvas);
+
+            // === NEW: Mouse Pointer Token on Audience ===
+            if (Control != null)
+            {
+                var tokenPaint = new SKPaint
+                {
+                    Color = SKColors.Cyan,
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = 6,
+                    IsAntialias = true
+                };
+
+                // Main circle
+                canvas.DrawCircle(Control.mirrorMousePos, 22, tokenPaint);
+
+                // Inner circle
+                tokenPaint.StrokeWidth = 3;
+                tokenPaint.Color = SKColors.White;
+                canvas.DrawCircle(Control.mirrorMousePos, 12, tokenPaint);
+
+                // Crosshair
+                tokenPaint.StrokeWidth = 2;
+                canvas.DrawLine(
+                    Control.mirrorMousePos.X - 35, Control.mirrorMousePos.Y,
+                    Control.mirrorMousePos.X + 35, Control.mirrorMousePos.Y, tokenPaint);
+
+                canvas.DrawLine(
+                    Control.mirrorMousePos.X, Control.mirrorMousePos.Y - 35,
+                    Control.mirrorMousePos.X, Control.mirrorMousePos.Y + 35, tokenPaint);
+            }
         }
     }
 }

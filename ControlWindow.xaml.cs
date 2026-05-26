@@ -18,23 +18,24 @@ namespace rpgFogOfWar
         public SKMatrix transform = SKMatrix.CreateIdentity();
         public SKBitmap? fogMask;
         public bool fogRevealed = false;
-
         private List<Marker> markers = new List<Marker>();
         private List<ShapeOverlay> shapes = new List<ShapeOverlay>();
         private ShapeOverlay? previewShape = null;
-
         private bool isDrawingShape = false;
         private bool isRevealing = false;
-        private float revealRadius = 120f;
-
-        private SKPoint mirrorMousePos = new SKPoint(0, 0);
+        private float revealRadius = 60f;
+        public SKPoint mirrorMousePos = new SKPoint(0, 0);
         private System.Windows.Point? lastPanPoint;
         private bool isFullyLoaded = false;
         private Stack<object> undoStack = new Stack<object>();
-
         private ShapeType currentShapeType = ShapeType.Circle;
         private float currentShapeSize = 120f;
         private float currentShapeRotation = 0f;
+        private System.Windows.Threading.DispatcherTimer? animationTimer;
+        private int currentFrameIndex = 0;
+        private List<SKBitmap>? gifFrames;
+        private List<int>? frameDurations;   // in milliseconds
+
 
         public ControlWindow()
         {
@@ -82,19 +83,102 @@ namespace rpgFogOfWar
 
         private void LoadImage()
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp" };
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Images & Animated GIFs|*.png;*.jpg;*.jpeg;*.bmp;*.gif"
+            };
+
             if (dlg.ShowDialog() == true)
             {
                 currentImagePath = dlg.FileName;
-                currentImage = SKBitmap.Decode(dlg.FileName);
-                fogRevealed = false;
-                CreateFogMask();
-                transform = SKMatrix.CreateIdentity();
-                markers.Clear();
-                shapes.Clear();
-                undoStack.Clear();
-                InvalidateAll();
+                LoadImageFile(dlg.FileName);
             }
+        }
+
+        private void LoadImageFile(string filePath)
+        {
+            // Stop any existing animation
+            animationTimer?.Stop();
+
+            gifFrames?.ForEach(f => f.Dispose());
+            gifFrames = null;
+            frameDurations = null;
+            currentFrameIndex = 0;
+
+            if (filePath.ToLower().EndsWith(".gif"))
+            {
+                LoadAnimatedGif(filePath);
+            }
+            else
+            {
+                currentImage = SKBitmap.Decode(filePath);
+                gifFrames = null;
+            }
+
+            fogRevealed = false;
+            CreateFogMask();
+            transform = SKMatrix.CreateIdentity();
+            markers.Clear();
+            shapes.Clear();
+            undoStack.Clear();
+
+            StartAnimationIfNeeded();
+            InvalidateAll();
+        }
+
+        private void LoadAnimatedGif(string filePath)
+        {
+            using var stream = File.OpenRead(filePath);
+            using var managedStream = new SKManagedStream(stream);
+            using var codec = SKCodec.Create(managedStream);
+
+            if (codec == null)
+            {
+                System.Windows.MessageBox.Show("Failed to load GIF", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            gifFrames = new List<SKBitmap>();
+            frameDurations = new List<int>();
+
+            for (int i = 0; i < codec.FrameCount; i++)
+            {
+                var bitmap = new SKBitmap(codec.Info.Width, codec.Info.Height);
+                var options = new SKCodecOptions(i);
+
+                codec.GetPixels(bitmap.Info, bitmap.GetPixels(), options);
+
+                gifFrames.Add(bitmap);
+                frameDurations.Add(codec.FrameInfo[i].Duration > 0 ? codec.FrameInfo[i].Duration : 100);
+            }
+
+            currentImage = gifFrames.FirstOrDefault();
+            Debug.WriteLine($"Loaded animated GIF with {gifFrames.Count} frames");
+        }
+
+
+        private void StartAnimationIfNeeded()
+        {
+            if (gifFrames == null || gifFrames.Count <= 1)
+                return;
+
+            animationTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(frameDurations?[currentFrameIndex] ?? 100)
+            };
+
+            animationTimer.Tick += (s, e) =>
+            {
+                currentFrameIndex = (currentFrameIndex + 1) % gifFrames.Count;
+                currentImage = gifFrames[currentFrameIndex];
+
+                if (animationTimer != null)
+                    animationTimer.Interval = TimeSpan.FromMilliseconds(frameDurations?[currentFrameIndex] ?? 100);
+
+                InvalidateAll();
+            };
+
+            animationTimer.Start();
         }
 
         private void CreateFogMask()
