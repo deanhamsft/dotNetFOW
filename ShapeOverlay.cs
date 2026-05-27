@@ -21,9 +21,9 @@ public class ShapeOverlay
     {
         var paint = new SKPaint
         {
-            Color = new SKColor(0, 255, 100, 120), // Semi-transparent green
+            Color = new SKColor(0, 0, 0, 255), // Semi-transparent green
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 3,
+            StrokeWidth = 5,
             IsAntialias = true
         };
 
