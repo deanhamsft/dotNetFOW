@@ -1,7 +1,6 @@
 public class SessionData
 {
     public string? ImagePath { get; set; }
-
     public float TranslateX { get; set; }
     public float TranslateY { get; set; }
     public float Scale { get; set; } = 1f;
