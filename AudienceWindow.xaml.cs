@@ -1,5 +1,6 @@
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
+using System.Diagnostics;
 using System.Windows;
 
 namespace rpgFogOfWar
@@ -18,52 +19,44 @@ namespace rpgFogOfWar
         private void SkAudience_PaintSurface(object sender, SKPaintSurfaceEventArgs e)
         {
             var canvas = e.Surface.Canvas;
-            canvas.Clear(SKColors.Black);
+            canvas.Clear(SKColors.Black);   // Force pure black
 
             if (Control?.currentImage == null)
                 return;
 
             canvas.SetMatrix(Control.transform);
+
+            // Draw the full image
             canvas.DrawBitmap(Control.currentImage, 0, 0);
 
-            // Draw current fog state
-            if (!Control.fogRevealed && Control.fogMask != null)
+            // If not fully revealed, apply the revealedMask as an alpha mask
+            if (!Control.fogRevealed && Control.revealedMask != null)
             {
-                canvas.DrawBitmap(Control.fogMask, 0, 0);
+                Debug.WriteLine("Applying revealedMask on Audience");
+
+                canvas.DrawBitmap(Control.revealedMask, 0, 0);
+            }
+            else
+            {
+                Debug.WriteLine("Full reveal mode on Audience");
             }
 
-            // Draw all markers and shapes
+            // Draw overlays
             Control.DrawOverlays(canvas);
 
-            // === NEW: Mouse Pointer Token on Audience ===
-            if (Control != null)
+            // Cyan mouse pointer token
+            var tokenPaint = new SKPaint
             {
-                var tokenPaint = new SKPaint
-                {
-                    Color = SKColors.Cyan,
-                    Style = SKPaintStyle.Stroke,
-                    StrokeWidth = 6,
-                    IsAntialias = true
-                };
+                Color = SKColors.Cyan,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 6,
+                IsAntialias = true
+            };
+            canvas.DrawCircle(Control.mirrorMousePos, 22, tokenPaint);
 
-                // Main circle
-                canvas.DrawCircle(Control.mirrorMousePos, 22, tokenPaint);
-
-                // Inner circle
-                tokenPaint.StrokeWidth = 3;
-                tokenPaint.Color = SKColors.White;
-                canvas.DrawCircle(Control.mirrorMousePos, 12, tokenPaint);
-
-                // Crosshair
-                tokenPaint.StrokeWidth = 2;
-                canvas.DrawLine(
-                    Control.mirrorMousePos.X - 35, Control.mirrorMousePos.Y,
-                    Control.mirrorMousePos.X + 35, Control.mirrorMousePos.Y, tokenPaint);
-
-                canvas.DrawLine(
-                    Control.mirrorMousePos.X, Control.mirrorMousePos.Y - 35,
-                    Control.mirrorMousePos.X, Control.mirrorMousePos.Y + 35, tokenPaint);
-            }
+            tokenPaint.StrokeWidth = 3;
+            tokenPaint.Color = SKColors.White;
+            canvas.DrawCircle(Control.mirrorMousePos, 12, tokenPaint);
         }
     }
 }

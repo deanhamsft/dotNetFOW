@@ -35,7 +35,7 @@ namespace rpgFogOfWar
         private int currentFrameIndex = 0;
         private List<SKBitmap>? gifFrames;
         private List<int>? frameDurations;   // in milliseconds
-
+        public SKBitmap? revealedMask;   // Separate mask for Audience
 
         public ControlWindow()
         {
@@ -184,9 +184,20 @@ namespace rpgFogOfWar
         private void CreateFogMask()
         {
             if (currentImage == null) return;
+
+            Debug.WriteLine("Creating new fog masks...");
+
+            // Grey fog for Control
             fogMask = new SKBitmap(currentImage.Width, currentImage.Height);
-            using var canvas = new SKCanvas(fogMask);
-            canvas.Clear(new SKColor(0, 0, 0, 180));
+            using (var c = new SKCanvas(fogMask))
+                c.Clear(new SKColor(60, 60, 60, 200));
+
+            // Black revealed mask for Audience
+            revealedMask = new SKBitmap(currentImage.Width, currentImage.Height);
+            using (var c = new SKCanvas(revealedMask))
+                c.Clear(SKColors.Black);
+
+            Debug.WriteLine($"Fog masks created ({currentImage.Width}x{currentImage.Height})");
         }
 
         private void SkControl_PaintSurface(object sender, SKPaintSurfaceEventArgs e)
@@ -199,12 +210,16 @@ namespace rpgFogOfWar
             canvas.SetMatrix(transform);
             canvas.DrawBitmap(currentImage, 0, 0);
 
+            // Control shows the image + grey fog
             if (!fogRevealed && fogMask != null)
+            {
                 canvas.DrawBitmap(fogMask, 0, 0);
+            }
 
             DrawOverlays(canvas);
 
-            canvas.DrawCircle(mirrorMousePos, 10, new SKPaint
+            // Yellow DM pointer on Control
+            canvas.DrawCircle(mirrorMousePos, 15, new SKPaint
             {
                 Color = SKColors.Yellow,
                 Style = SKPaintStyle.Stroke,
@@ -289,6 +304,12 @@ namespace rpgFogOfWar
                 var (text, color) = GetSelectedCondition();
                 var size = GetSelectedMarkerSize();
                 var marker = new Marker(worldPoint, size, text, color);
+
+                if (marker.Text == "CONDITION")
+                {
+                    return;
+                }
+
                 markers.Add(marker);
                 undoStack.Push(marker);
                 InvalidateAll();
@@ -336,7 +357,7 @@ namespace rpgFogOfWar
                     undoStack.Push(finalShape);
 
                     // Do NOT reset shapeModeActive - user can keep placing same shape
-                    isDrawingShape = true;           // Stay in preview mode
+                    isDrawingShape = false;           // Stay in preview mode
                     previewShape = null;
                     InvalidateAll();
                 }
@@ -373,15 +394,43 @@ namespace rpgFogOfWar
 
         private void RevealAtPoint(SKPoint screenPoint)
         {
-            if (fogMask == null || currentImage == null) return;
+            Debug.WriteLine($"RevealAtPoint called at screen: ({screenPoint.X:F0}, {screenPoint.Y:F0})");
+
+            if (currentImage == null)
+            {
+                Debug.WriteLine("Reveal failed: No currentImage");
+                return;
+            }
 
             var inverse = transform.Invert();
             var imagePoint = inverse.MapPoint(screenPoint);
 
-            using var canvas = new SKCanvas(fogMask);
-            var erasePaint = new SKPaint { Color = SKColors.Transparent, BlendMode = SKBlendMode.Clear, IsAntialias = true };
-            canvas.DrawCircle(imagePoint, revealRadius, erasePaint);
+            Debug.WriteLine($"Transformed to image coords: ({imagePoint.X:F0}, {imagePoint.Y:F0})");
+
+            // Update Control fog mask
+            if (fogMask != null)
+            {
+                using var canvas = new SKCanvas(fogMask);
+                var erase = new SKPaint { Color = SKColors.Transparent, BlendMode = SKBlendMode.Clear, IsAntialias = true };
+                canvas.DrawCircle(imagePoint, revealRadius, erase);
+                Debug.WriteLine("Updated Control fogMask");
+            }
+
+            // Update Audience revealed mask
+            if (revealedMask != null)
+            {
+                using var canvas = new SKCanvas(revealedMask);
+                var reveal = new SKPaint { Color = SKColors.Transparent, BlendMode = SKBlendMode.Clear, IsAntialias = true };
+                canvas.DrawCircle(imagePoint, revealRadius, reveal);
+                Debug.WriteLine("Updated Audience revealedMask");
+            }
+            else
+            {
+                Debug.WriteLine("WARNING: revealedMask is null!");
+            }
+
             InvalidateAll();
+            Debug.WriteLine("InvalidateAll called after reveal");
         }
 
         private (string text, SKColor color) GetSelectedCondition()
@@ -430,6 +479,16 @@ namespace rpgFogOfWar
                 4 => ShapeType.Cone,
                 _ => ShapeType.Circle
             };
+
+            if (ShapeCombo.SelectedIndex == 0)
+            {
+                shapeModeActive = false;
+                isDrawingShape = false;
+                previewShape = null;
+                InvalidateAll();
+                return;
+            }
+
             Debug.WriteLine($"ShapeCombo_SelectionChanged: currentShapeType set to {currentShapeType}");
             shapeModeActive = true;
             isDrawingShape = true;
