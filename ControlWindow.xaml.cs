@@ -504,13 +504,13 @@ namespace rpgFogOfWar
         {
             if (currentImage == null)
             {
-                System.Windows.MessageBox.Show("No map loaded to save.", "Save Session", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show("No map loaded to save.", "Save", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
-                Filter = "Map Session|*.mapSes",
+                Filter = "D&D Map Session|*.mapSes",
                 DefaultExt = "mapSes"
             };
 
@@ -527,7 +527,7 @@ namespace rpgFogOfWar
                         Scale = transform.ScaleX
                     };
 
-                    // Save Markers
+                    // Save Markers & Shapes (existing code)
                     foreach (var m in markers)
                     {
                         session.Markers.Add(new MarkerData
@@ -540,7 +540,6 @@ namespace rpgFogOfWar
                         });
                     }
 
-                    // Save Shapes
                     foreach (var s in shapes)
                     {
                         session.Shapes.Add(new ShapeData
@@ -553,14 +552,22 @@ namespace rpgFogOfWar
                         });
                     }
 
+                    // === NEW: Save Fog / Revealed State ===
+                    if (revealedMask != null)
+                    {
+                        var image = new SKImageInfo(revealedMask.Width, revealedMask.Height);
+                        using var snapshot = revealedMask.Encode(SKEncodedImageFormat.Png, 90);
+                        session.RevealedMaskBase64 = Convert.ToBase64String(snapshot.ToArray());
+                    }
+
                     string json = JsonSerializer.Serialize(session, new JsonSerializerOptions { WriteIndented = true });
                     File.WriteAllText(dlg.FileName, json);
 
-                    System.Windows.MessageBox.Show("Session saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    System.Windows.MessageBox.Show("Session saved successfully!\n(Including fog state)", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    System.Windows.MessageBox.Show("Failed to save session:\n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show("Save failed: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -612,6 +619,19 @@ namespace rpgFogOfWar
 
                         InvalidateAll();
                         System.Windows.MessageBox.Show("Session loaded successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    // Load Fog / Revealed State
+                    if (!string.IsNullOrEmpty(session.RevealedMaskBase64) && revealedMask != null)
+                    {
+                        var bytes = Convert.FromBase64String(session.RevealedMaskBase64);
+                        using var stream = new MemoryStream(bytes);
+                        using var codec = SKCodec.Create(stream);
+                        if (codec != null)
+                        {
+                            revealedMask = new SKBitmap(codec.Info.Width, codec.Info.Height);
+                            codec.GetPixels(revealedMask.Info, revealedMask.GetPixels());
+                            Debug.WriteLine("Loaded revealed fog state from save");
+                        }
                     }
                 }
                 catch (Exception ex)

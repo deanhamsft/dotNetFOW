@@ -1,6 +1,7 @@
 public class SessionData
 {
     public string? ImagePath { get; set; }
+
     public float TranslateX { get; set; }
     public float TranslateY { get; set; }
     public float Scale { get; set; } = 1f;
@@ -8,8 +9,10 @@ public class SessionData
     public List<MarkerData> Markers { get; set; } = new();
     public List<ShapeData> Shapes { get; set; } = new();
 
-    // We'll save fog as a simple "revealed" flag for now (full partial fog is complex)
     public bool FogRevealed { get; set; }
+
+    // New: Save revealed areas as PNG bytes (base64)
+    public string? RevealedMaskBase64 { get; set; }
 }
 
 public class MarkerData
