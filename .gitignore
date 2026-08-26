@@ -1,2 +1,14 @@
 bin/
 obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.mapSes
+*_map.png
+*_map.jpg
+*_map.jpeg
+*_map.bmp
+*_map.gif
+*_fog.png

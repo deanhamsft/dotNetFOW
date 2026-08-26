@@ -1,13 +1,14 @@
 using SkiaSharp;
-using System;
 
-public class Marker
+namespace rpgFogOfWar;
+
+public sealed class Marker
 {
     public SKPoint Center { get; }
     public float Radius { get; }
     public string Text { get; }
     public SKColor Color { get; }
-    public double SizeMultiplier { get; }     // ← Added for Save/Load
+    public double SizeMultiplier { get; }
 
     public Marker(SKPoint center, double sizeMultiplier, string text, SKColor color)
     {
@@ -20,25 +21,24 @@ public class Marker
 
     public void Draw(SKCanvas canvas)
     {
-        // Outer Ring
-        canvas.DrawCircle(Center, Radius, new SKPaint
+        using var outer = new SKPaint
         {
             Color = Color,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 8,
             IsAntialias = true
-        });
+        };
+        canvas.DrawCircle(Center, Radius, outer);
 
-        // Inner Ring
-        canvas.DrawCircle(Center, Radius - 6, new SKPaint
+        using var inner = new SKPaint
         {
             Color = SKColors.White,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 3,
             IsAntialias = true
-        });
+        };
+        canvas.DrawCircle(Center, Radius - 6, inner);
 
-        // Curved Text
         using var font = new SKFont(SKTypeface.Default, 15f * (float)SizeMultiplier);
         using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
 

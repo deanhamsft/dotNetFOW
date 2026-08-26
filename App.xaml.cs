@@ -1,12 +1,8 @@
-﻿using System.Windows;   // This is the WPF Application
+using System.Windows;
 
 namespace rpgFogOfWar
 {
-    public partial class App : System.Windows.Application
+    public partial class App : Application
     {
-        public App()
-        {
-            // You can leave this empty or add startup logic later
-        }
     }
 }

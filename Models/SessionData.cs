@@ -1,6 +1,10 @@
-public class SessionData
+namespace rpgFogOfWar;
+
+public sealed class SessionData
 {
     public string? ImagePath { get; set; }
+    public string? ImageFile { get; set; }
+    public string? FogMaskFile { get; set; }
 
     public float TranslateX { get; set; }
     public float TranslateY { get; set; }
@@ -11,20 +15,19 @@ public class SessionData
 
     public bool FogRevealed { get; set; }
 
-    // New: Save revealed areas as PNG bytes (base64)
     public string? RevealedMaskBase64 { get; set; }
 }
 
-public class MarkerData
+public sealed class MarkerData
 {
     public float X { get; set; }
     public float Y { get; set; }
     public double SizeMultiplier { get; set; }
     public string Text { get; set; } = "";
-    public string ColorHex { get; set; } = "#FF0000";
+    public string ColorHex { get; set; } = "#FFFF0000";
 }
 
-public class ShapeData
+public sealed class ShapeData
 {
     public string Type { get; set; } = "Circle";
     public float CenterX { get; set; }
